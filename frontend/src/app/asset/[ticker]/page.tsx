@@ -590,7 +590,7 @@ function OwnershipCurrentSubTab({ ticker, data }: { ticker: string; data: Owners
       <div className="px-3 py-1 text-xxs text-term-muted border-b border-term-border flex items-center gap-4">
         <span>Ticker <span className="text-term-orange font-bold">{ticker}</span></span>
         {data.shares_outstanding != null && (
-          <span>Shrs Out <span className="text-term-white font-bold">{formatNumber(data.shares_outstanding as unknown as number)}</span></span>
+          <span>Shrs Out <span className="text-term-white font-bold">{formatNumber(data.shares_outstanding)}</span></span>
         )}
         {data.institutions_pct != null && (
           <span>Inst % Out <span className="text-term-white font-bold">{data.institutions_pct.toFixed(2)}%</span></span>

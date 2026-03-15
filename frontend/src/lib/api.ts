@@ -175,6 +175,7 @@ export interface InstitutionalHolder {
 
 export interface OwnershipData {
   ticker: string;
+  shares_outstanding?: number;
   insiders_pct?: number;
   institutions_pct?: number;
   institutions_float_pct?: number;
