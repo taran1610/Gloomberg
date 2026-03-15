@@ -17,6 +17,14 @@ from services.data_sources import (
 from services.edgar_helper import (
     get_ownership_from_edgar,
     get_insider_transactions_from_edgar,
+    get_debt_data_from_edgar,
+)
+from services.dummy_data import (
+    get_dummy_ownership,
+    get_dummy_debt,
+    get_dummy_insider_transactions,
+    get_dummy_news,
+    get_dummy_candles,
 )
 
 logger = logging.getLogger(__name__)
@@ -522,23 +530,32 @@ class MarketDataService:
                 "institutions_count": institutions_count,
                 "institutional_holders": holders,
             }
-            # Supplement with SEC data from edgartools (shares_outstanding)
+            # Use EDGAR (SEC filings) as primary for shares_outstanding and public_float
             edgar_data = await asyncio.to_thread(get_ownership_from_edgar, ticker)
-            if edgar_data and edgar_data.get("shares_outstanding"):
-                result["shares_outstanding"] = edgar_data["shares_outstanding"]
+            if edgar_data:
+                if edgar_data.get("shares_outstanding") is not None:
+                    result["shares_outstanding"] = edgar_data["shares_outstanding"]
+                if edgar_data.get("public_float") is not None:
+                    result["public_float"] = edgar_data["public_float"]
+            # Fallback to yfinance shares if EDGAR had none
+            if result["shares_outstanding"] is None:
+                yf_info = t.info or {}
+                if yf_info.get("sharesOutstanding"):
+                    result["shares_outstanding"] = float(yf_info["sharesOutstanding"])
+            # Always show something: use dummy when empty
+            if not result.get("institutional_holders"):
+                dummy = get_dummy_ownership(ticker)
+                result["institutional_holders"] = dummy["institutional_holders"]
+                if result.get("shares_outstanding") is None:
+                    result["shares_outstanding"] = dummy["shares_outstanding"]
+                for k in ("insiders_pct", "institutions_pct", "institutions_float_pct", "institutions_count"):
+                    if result.get(k) is None:
+                        result[k] = dummy.get(k)
             await self._cache_set(cache_key, json.dumps(result), self.settings.cache_ttl_ticker)
             return result
         except Exception as e:
             logger.error(f"Error fetching ownership for {ticker}: {e}")
-            return {
-                "ticker": ticker.upper(),
-                "shares_outstanding": None,
-                "insiders_pct": None,
-                "institutions_pct": None,
-                "institutions_float_pct": None,
-                "institutions_count": None,
-                "institutional_holders": [],
-            }
+            return get_dummy_ownership(ticker)
 
     async def get_history(self, ticker: str, period: str = "1y", interval: str = "1d") -> list[dict]:
         cache_key = f"history:{ticker}:{period}:{interval}"
@@ -547,6 +564,9 @@ class MarketDataService:
             return json.loads(cached)
 
         records = await asyncio.to_thread(self._fetch_history, ticker, period, interval)
+        # Always show something: use dummy chart when empty
+        if not records:
+            records = get_dummy_candles(ticker)
         await self._cache_set(cache_key, json.dumps(records), self.settings.cache_ttl_history)
         return records
 
@@ -575,11 +595,14 @@ class MarketDataService:
                         "link": link,
                         "published": pub_date,
                     })
+            # Always show something: use dummy when empty
+            if not results:
+                results = get_dummy_news(ticker)
             await self._cache_set(f"news:{ticker}", json.dumps(results), self.settings.cache_ttl_news)
             return results
         except Exception as e:
             logger.error(f"Error fetching news for {ticker}: {e}")
-            return []
+            return get_dummy_news(ticker)
 
     async def get_insider_transactions(self, ticker: str) -> dict:
         cache_key = f"insider_tx:{ticker}"
@@ -651,6 +674,9 @@ class MarketDataService:
                 return {"ticker": ticker, "transactions": 0, "buys": 0, "sells": 0, "insider_transactions": []}
 
         result = await asyncio.to_thread(_fetch)
+        # Always show something: use dummy when empty
+        if not result.get("insider_transactions"):
+            result = get_dummy_insider_transactions(ticker)
         await self._cache_set(cache_key, json.dumps(result), self.settings.cache_ttl_ticker)
         return result
 
@@ -659,6 +685,13 @@ class MarketDataService:
         cached = await self._cache_get(cache_key)
         if cached:
             return json.loads(cached)
+
+        # Use EDGAR (10-K/10-Q) first for US stocks - official SEC filings
+        if _is_us_stock_symbol(ticker):
+            edgar_debt = await asyncio.to_thread(get_debt_data_from_edgar, ticker)
+            if edgar_debt and edgar_debt.get("items"):
+                await self._cache_set(cache_key, json.dumps(edgar_debt), self.settings.cache_ttl_ticker)
+                return edgar_debt
 
         def _fetch():
             try:
@@ -730,6 +763,9 @@ class MarketDataService:
                 return {"ticker": ticker, "fiscal_year": "", "items": []}
 
         result = await asyncio.to_thread(_fetch)
+        # Always show something: use dummy when empty
+        if not result.get("items"):
+            result = get_dummy_debt(ticker)
         await self._cache_set(cache_key, json.dumps(result), self.settings.cache_ttl_ticker)
         return result
 

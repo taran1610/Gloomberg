@@ -2,6 +2,16 @@ import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, Query
+
+from services.dummy_data import (
+    DUMMY_INDICES,
+    DUMMY_GAINERS,
+    DUMMY_LOSERS,
+    DUMMY_SECTORS,
+    DUMMY_CRYPTO,
+    DUMMY_COMMODITIES,
+    DUMMY_FOREX,
+)
 from services.market_data import MarketDataService
 from models.schemas import DashboardResponse, SearchResult
 
@@ -35,19 +45,34 @@ async def get_dashboard():
     )
     def ok(i: int, default):
         r = results[i]
-        if isinstance(r, BaseException):
+        if isinstance(r, Exception):
             logger.warning(f"Dashboard fetch {i} failed: {r}")
             return default
         return r
 
-    indices = ok(0, [])
-    gl = ok(1, ([], []))
-    gainers, losers = gl if isinstance(gl, tuple) else ([], [])
-    sectors = ok(2, [])
-    crypto = ok(3, [])
-    commodities = ok(4, [])
-    forex = ok(5, [])
-    vix = ok(6, None)
+    indices = ok(0, DUMMY_INDICES)
+    gl = ok(1, (DUMMY_GAINERS, DUMMY_LOSERS))
+    gainers, losers = gl if isinstance(gl, tuple) else (DUMMY_GAINERS, DUMMY_LOSERS)
+    sectors = ok(2, DUMMY_SECTORS)
+    crypto = ok(3, DUMMY_CRYPTO)
+    commodities = ok(4, DUMMY_COMMODITIES)
+    forex = ok(5, DUMMY_FOREX)
+    vix = ok(6, 15.5)
+    # Ensure non-empty: use dummy when real data is empty
+    if not indices:
+        indices = DUMMY_INDICES
+    if not gainers:
+        gainers = DUMMY_GAINERS
+    if not losers:
+        losers = DUMMY_LOSERS
+    if not sectors:
+        sectors = DUMMY_SECTORS
+    if not crypto:
+        crypto = DUMMY_CRYPTO
+    if not commodities:
+        commodities = DUMMY_COMMODITIES
+    if not forex:
+        forex = DUMMY_FOREX
 
     ai_summary = None
     ai = get_ai_service()

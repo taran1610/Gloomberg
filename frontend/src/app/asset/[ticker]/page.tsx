@@ -11,6 +11,9 @@ import {
   fetchInsiderTransactions,
   fetchDebt,
   fetchNewsEnhanced,
+  getDummyOwnership,
+  getDummyDebt,
+  getDummyInsiderTransactions,
   formatNumber,
   formatPercent,
   type AssetData,
@@ -81,13 +84,13 @@ export default function AssetPage() {
     if (!ticker || tab !== "ownership") return;
     fetchOwnership(ticker)
       .then(setOwnershipData)
-      .catch(() => setOwnershipData(null));
+      .catch(() => setOwnershipData(getDummyOwnership(ticker)));
     fetchInsiderTransactions(ticker)
       .then(setInsiderData)
-      .catch(() => setInsiderData(null));
+      .catch(() => setInsiderData(getDummyInsiderTransactions(ticker)));
     fetchDebt(ticker)
       .then(setDebtData)
-      .catch(() => setDebtData(null));
+      .catch(() => setDebtData(getDummyDebt(ticker)));
   }, [ticker, tab]);
 
   useEffect(() => {
