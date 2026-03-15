@@ -79,6 +79,9 @@ async def lifespan(app: FastAPI):
             missing.append("FINANCIAL_DATASETS_API_KEY")
         logger.info(f"Dexter agent disabled (missing: {', '.join(missing)})")
 
+    from services.edgar_helper import init_edgar
+    init_edgar(settings.edgar_identity)
+
     yield
 
     if fin_client:

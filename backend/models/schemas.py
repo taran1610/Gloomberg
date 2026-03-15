@@ -130,6 +130,7 @@ class InstitutionalHolder(BaseModel):
 
 class OwnershipResponse(BaseModel):
     ticker: str
+    shares_outstanding: Optional[float] = None
     insiders_pct: Optional[float] = None
     institutions_pct: Optional[float] = None
     institutions_float_pct: Optional[float] = None

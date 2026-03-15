@@ -78,6 +78,7 @@ async def get_ownership(ticker: str = Path(...)):
     holders = [InstitutionalHolder(**h) for h in raw.get("institutional_holders", [])]
     return OwnershipResponse(
         ticker=raw["ticker"],
+        shares_outstanding=raw.get("shares_outstanding"),
         insiders_pct=raw.get("insiders_pct"),
         institutions_pct=raw.get("institutions_pct"),
         institutions_float_pct=raw.get("institutions_float_pct"),

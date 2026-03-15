@@ -5,6 +5,7 @@ import logging
 from typing import Optional
 
 from services.technical_analysis import compute_indicator_series
+from services.data_sources import fetch_history_df_with_fallback, _is_us_stock_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -62,12 +63,15 @@ def _build_equity_curve_output(equity_curve: pd.Series) -> list[dict]:
 
 
 def run_backtest(ticker: str, strategy: str, params: dict, period: str = "2y") -> dict:
-    """Run a backtest for the given ticker and strategy."""
+    """Run a backtest for the given ticker and strategy. Uses yfinance with akshare fallback for US stocks."""
     try:
-        t = yf.Ticker(ticker)
-        df = t.history(period=period)
-        if df.empty or len(df) < 50:
-            return {"error": f"Insufficient data for {ticker}"}
+        period = (period or "2y").lower()
+        df = fetch_history_df_with_fallback(ticker, period)
+        if df is None or df.empty or len(df) < 50:
+            if period != "max" and _is_us_stock_symbol(ticker):
+                df = fetch_history_df_with_fallback(ticker, "max")
+            if df is None or df.empty or len(df) < 50:
+                return {"error": f"Insufficient data for {ticker} (got {len(df) if df is not None else 0} rows, need 50+). Try a different ticker or check if it's tradeable."}
 
         df = compute_indicator_series(df)
 

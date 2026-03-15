@@ -8,6 +8,14 @@ from typing import Optional
 from redis import asyncio as aioredis
 
 from config import get_settings
+from services.data_sources import (
+    fetch_batch_prices_with_fallback,
+    fetch_history_with_fallback,
+)
+from services.edgar_helper import (
+    get_ownership_from_edgar,
+    get_insider_transactions_from_edgar,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -95,44 +103,12 @@ _mem_cache = MemCache()
 
 def _batch_download_prices(symbols: list[str]) -> dict[str, dict]:
     """
-    Use yf.download to fetch 5 days of data for many tickers in a single HTTP call.
+    Fetch prices for many tickers. Uses yfinance with akshare fallback for US stocks.
     Returns {symbol: {"price": ..., "prev_close": ...}} for each.
     """
     if not symbols:
         return {}
-    try:
-        df = yf.download(
-            " ".join(symbols),
-            period="5d",
-            interval="1d",
-            group_by="ticker",
-            progress=False,
-            threads=False,
-        )
-        if df.empty:
-            return {}
-
-        results = {}
-        for sym in symbols:
-            try:
-                if sym in df.columns.get_level_values(0):
-                    sub = df[sym]
-                else:
-                    continue
-                if sub is None or sub.empty:
-                    continue
-                sub = sub.dropna(subset=["Close"])
-                if len(sub) < 1:
-                    continue
-                price = float(sub["Close"].iloc[-1])
-                prev = float(sub["Close"].iloc[-2]) if len(sub) >= 2 else price
-                results[sym] = {"price": round(price, 2), "prev_close": round(prev, 2)}
-            except Exception:
-                continue
-        return results
-    except Exception as e:
-        logger.error(f"Batch download error: {e}")
-        return {}
+    return fetch_batch_prices_with_fallback(symbols)
 
 
 def _get_ticker_names(symbols: list[str]) -> dict[str, str]:
@@ -190,25 +166,8 @@ class MarketDataService:
             return {}
 
     def _fetch_history(self, symbol: str, period: str = "1y", interval: str = "1d") -> list[dict]:
-        try:
-            ticker = yf.Ticker(symbol)
-            hist = ticker.history(period=period, interval=interval)
-            if hist.empty:
-                return []
-            records = []
-            for date, row in hist.iterrows():
-                records.append({
-                    "time": date.strftime("%Y-%m-%d"),
-                    "open": round(row["Open"], 2),
-                    "high": round(row["High"], 2),
-                    "low": round(row["Low"], 2),
-                    "close": round(row["Close"], 2),
-                    "volume": int(row["Volume"]),
-                })
-            return records
-        except Exception as e:
-            logger.error(f"Error fetching history for {symbol}: {e}")
-            return []
+        """Fetch OHLCV history. Uses yfinance with akshare fallback for US stocks."""
+        return fetch_history_with_fallback(symbol, period, interval)
 
     async def get_indices(self) -> list[dict]:
         cached = await self._cache_get("indices")
@@ -519,18 +478,24 @@ class MarketDataService:
 
             result = {
                 "ticker": ticker.upper(),
+                "shares_outstanding": None,
                 "insiders_pct": insiders_pct,
                 "institutions_pct": institutions_pct,
                 "institutions_float_pct": institutions_float_pct,
                 "institutions_count": institutions_count,
                 "institutional_holders": holders,
             }
+            # Supplement with SEC data from edgartools (shares_outstanding)
+            edgar_data = await asyncio.to_thread(get_ownership_from_edgar, ticker)
+            if edgar_data and edgar_data.get("shares_outstanding"):
+                result["shares_outstanding"] = edgar_data["shares_outstanding"]
             await self._cache_set(cache_key, json.dumps(result), self.settings.cache_ttl_ticker)
             return result
         except Exception as e:
             logger.error(f"Error fetching ownership for {ticker}: {e}")
             return {
                 "ticker": ticker.upper(),
+                "shares_outstanding": None,
                 "insiders_pct": None,
                 "institutions_pct": None,
                 "institutions_float_pct": None,
@@ -584,6 +549,12 @@ class MarketDataService:
         cached = await self._cache_get(cache_key)
         if cached:
             return json.loads(cached)
+
+        # Try edgartools (Form 4) first for US companies
+        edgar_result = await asyncio.to_thread(get_insider_transactions_from_edgar, ticker)
+        if edgar_result and edgar_result.get("insider_transactions"):
+            await self._cache_set(cache_key, json.dumps(edgar_result), self.settings.cache_ttl_ticker)
+            return edgar_result
 
         def _fetch():
             try:

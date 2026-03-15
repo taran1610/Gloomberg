@@ -32,14 +32,20 @@ async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(msg);
   }
   if (!res.ok) {
+    const data = await res.json().catch(() => ({})) as { detail?: string | { msg?: string }[] };
+    const detailRaw = data.detail;
+    const detail = typeof detailRaw === "string"
+      ? detailRaw
+      : Array.isArray(detailRaw) && detailRaw[0]?.msg
+        ? detailRaw[0].msg
+        : undefined;
     if (res.status === 402) {
-      const data = await res.json().catch(() => ({ detail: "Upgrade required" }));
-      throw new UpgradeRequiredError(data.detail || "Upgrade required");
+      throw new UpgradeRequiredError(detail || "Upgrade required");
     }
     if (res.status === 401) {
-      throw new AuthRequiredError("Authentication required");
+      throw new AuthRequiredError(detail || "Authentication required");
     }
-    throw new Error(`API error: ${res.status} ${res.statusText}`);
+    throw new Error(detail || `API error: ${res.status} ${res.statusText}`);
   }
   try {
     return await res.json();

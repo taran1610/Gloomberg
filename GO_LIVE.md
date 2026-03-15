@@ -36,7 +36,8 @@ git push -u origin main
    - `OPENAI_API_KEY` = your OpenAI key
    - `FINANCIAL_DATASETS_API_KEY` = your key (if you have one)
    - `FRONTEND_URL` = leave blank for now
-   - `REDIS_URL` = optional (leave blank to run without Redis)
+   - `EDGAR_IDENTITY` = your email (SEC requires this for ownership/insider data)
+   - `REDIS_URL` = **recommended** for faster loads — see [docs/REDIS_SETUP.md](docs/REDIS_SETUP.md) (Upstash free tier, ~2 min)
 5. Click **Create Web Service**. Wait for the first deploy to finish.
 6. Copy your backend URL, e.g. `https://gloomberg-xxxx.onrender.com`.
 7. Test: open `https://YOUR-BACKEND-URL/api/health` in a browser. You should see `{"status":"ok",...}`.
@@ -77,4 +78,5 @@ git push -u origin main
 
 **Custom domain (optional):** In Vercel → Project → Settings → Domains, add your domain. Then set `FRONTEND_URL` on Render to that domain and redeploy the backend.
 
-For more detail (Stripe, Redis, etc.), see **DEPLOY.md**.
+- **Redis** (faster loads): See [docs/REDIS_SETUP.md](docs/REDIS_SETUP.md) for Upstash/Redis Cloud setup.
+- For more detail (Stripe, etc.), see **DEPLOY.md**.

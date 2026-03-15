@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
     stripe_price_id_pro: str = ""
     frontend_url: str = "http://localhost:3000"
+    edgar_identity: str = "gloomberg@example.com"  # SEC requires identity for EDGAR requests
 
     class Config:
         env_file = ("../.env", ".env")
