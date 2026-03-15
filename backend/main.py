@@ -67,7 +67,9 @@ async def lifespan(app: FastAPI):
     fin_client = FinancialDatasetsClient()
     if fin_client.is_available() and settings.openai_api_key:
         dexter_agent = DexterAgent(fin_client)
-        logger.info("Dexter deep research agent initialized (Financial Datasets API + OpenAI)")
+        logger.info(
+            "Dexter deep research agent initialized (Financial Datasets API + OpenAI)"
+        )
     else:
         dexter_agent = None
         missing = []
@@ -119,6 +121,15 @@ app.include_router(research_router)
 app.include_router(strategy_router)
 
 
+@app.get("/")
+async def root():
+    return {
+        "service": "Gloomberg API",
+        "docs": "/docs",
+        "health": "/api/health",
+    }
+
+
 @app.get("/api/health")
 async def health():
     return {
@@ -131,4 +142,5 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
