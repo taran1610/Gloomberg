@@ -120,27 +120,31 @@ def fetch_forex_akshare() -> list[dict]:
         df = ak.forex_spot_em()
         if df is None or df.empty:
             return []
-        # Columns: 序号, 代码, 名称, 最新价, 涨跌额, 涨跌幅, 今开, 最高, 最低, 昨收
+        # Columns: 序号, 代码, 名称, 最新价, 涨跌额, 涨跌幅, ...
         col_code = "代码" if "代码" in df.columns else df.columns[1]
         col_price = "最新价" if "最新价" in df.columns else df.columns[3]
-        col_pct = "涨跌幅" if "涨跌幅" in df.columns else df.columns[5]
+        col_pct = "涨跌幅" if "涨跌幅" in df.columns else (df.columns[5] if len(df.columns) > 5 else None)
 
         results = []
         name_map = {
             "EURUSD=X": "EUR/USD", "GBPUSD=X": "GBP/USD", "USDJPY=X": "USD/JPY",
             "AUDUSD=X": "AUD/USD", "USDCAD=X": "USD/CAD", "USDCHF=X": "USD/CHF",
         }
+        df_codes = df[col_code].astype(str).str.upper().str.replace("/", "").str.replace("-", "")
+
         for yf_sym, ak_code in FOREX_AKSHARE_MAP.items():
-            row = df[df[col_code].astype(str).str.upper() == ak_code.upper()]
-            if not row.empty:
-                price = float(row[col_price].iloc[0])
-                change_pct = float(row[col_pct].iloc[0]) if col_pct in row.columns else 0
-                results.append({
-                    "ticker": yf_sym,
-                    "name": name_map.get(yf_sym, yf_sym),
-                    "price": round(price, 4),
-                    "change_pct": round(change_pct, 2),
-                })
+            match_code = ak_code.upper().replace("/", "").replace("-", "")
+            row = df[df_codes == match_code]
+            if row.empty:
+                continue
+            price = float(row[col_price].iloc[0])
+            change_pct = float(row[col_pct].iloc[0]) if col_pct and col_pct in df.columns else 0
+            results.append({
+                "ticker": yf_sym,
+                "name": name_map.get(yf_sym, yf_sym),
+                "price": round(price, 4),
+                "change_pct": round(change_pct, 2),
+            })
         return results
     except Exception as e:
         logger.warning(f"akshare forex fetch failed: {e}")

@@ -263,30 +263,27 @@ class MarketDataService:
         if cached:
             return json.loads(cached)
 
-        symbols = list(CRYPTO_TICKERS.keys())
-        prices = await asyncio.to_thread(_batch_download_prices, symbols)
+        # Prefer CoinGecko (free, no Yahoo rate limits)
+        from services.alt_data_sources import fetch_crypto_coingecko
+        results = await asyncio.to_thread(fetch_crypto_coingecko)
+        if not results:
+            symbols = list(CRYPTO_TICKERS.keys())
+            prices = await asyncio.to_thread(_batch_download_prices, symbols)
+            results = []
+            for symbol, name in CRYPTO_TICKERS.items():
+                p = prices.get(symbol, {})
+                price = p.get("price", 0)
+                prev = p.get("prev_close", price)
+                change_pct = ((price - prev) / prev * 100) if prev else 0
+                results.append({
+                    "ticker": symbol,
+                    "name": name,
+                    "price": round(price, 2),
+                    "change_pct": round(change_pct, 2),
+                })
 
-        results = []
-        for symbol, name in CRYPTO_TICKERS.items():
-            p = prices.get(symbol, {})
-            price = p.get("price", 0)
-            prev = p.get("prev_close", price)
-            change_pct = ((price - prev) / prev * 100) if prev else 0
-            results.append({
-                "ticker": symbol,
-                "name": name,
-                "price": round(price, 2),
-                "change_pct": round(change_pct, 2),
-            })
-
-        # If yfinance failed (all zeros), use CoinGecko
-        if all(r["price"] == 0 for r in results):
-            from services.alt_data_sources import fetch_crypto_coingecko
-            cg_results = await asyncio.to_thread(fetch_crypto_coingecko)
-            if cg_results:
-                results = cg_results
-
-        await self._cache_set("crypto", json.dumps(results), self.settings.cache_ttl_dashboard)
+        if results:
+            await self._cache_set("crypto", json.dumps(results), self.settings.cache_ttl_dashboard)
         return results
 
     async def get_commodities(self) -> list[dict]:
@@ -294,30 +291,27 @@ class MarketDataService:
         if cached:
             return json.loads(cached)
 
-        symbols = list(COMMODITY_TICKERS.keys())
-        prices = await asyncio.to_thread(_batch_download_prices, symbols)
+        # Prefer akshare commodities (avoids Yahoo rate limits)
+        from services.alt_data_sources import fetch_commodities_akshare
+        results = await asyncio.to_thread(fetch_commodities_akshare)
+        if not results:
+            symbols = list(COMMODITY_TICKERS.keys())
+            prices = await asyncio.to_thread(_batch_download_prices, symbols)
+            results = []
+            for symbol, name in COMMODITY_TICKERS.items():
+                p = prices.get(symbol, {})
+                price = p.get("price", 0)
+                prev = p.get("prev_close", price)
+                change_pct = ((price - prev) / prev * 100) if prev else 0
+                results.append({
+                    "ticker": symbol,
+                    "name": name,
+                    "price": round(price, 2),
+                    "change_pct": round(change_pct, 2),
+                })
 
-        results = []
-        for symbol, name in COMMODITY_TICKERS.items():
-            p = prices.get(symbol, {})
-            price = p.get("price", 0)
-            prev = p.get("prev_close", price)
-            change_pct = ((price - prev) / prev * 100) if prev else 0
-            results.append({
-                "ticker": symbol,
-                "name": name,
-                "price": round(price, 2),
-                "change_pct": round(change_pct, 2),
-            })
-
-        # If yfinance failed (all zeros), use akshare commodities
-        if all(r["price"] == 0 for r in results):
-            from services.alt_data_sources import fetch_commodities_akshare
-            ak_results = await asyncio.to_thread(fetch_commodities_akshare)
-            if ak_results:
-                results = ak_results
-
-        await self._cache_set("commodities", json.dumps(results), self.settings.cache_ttl_dashboard)
+        if results:
+            await self._cache_set("commodities", json.dumps(results), self.settings.cache_ttl_dashboard)
         return results
 
     async def get_forex(self) -> list[dict]:
@@ -325,30 +319,27 @@ class MarketDataService:
         if cached:
             return json.loads(cached)
 
-        symbols = list(FOREX_TICKERS.keys())
-        prices = await asyncio.to_thread(_batch_download_prices, symbols)
+        # Prefer akshare forex (avoids Yahoo rate limits)
+        from services.alt_data_sources import fetch_forex_akshare
+        results = await asyncio.to_thread(fetch_forex_akshare)
+        if not results:
+            symbols = list(FOREX_TICKERS.keys())
+            prices = await asyncio.to_thread(_batch_download_prices, symbols)
+            results = []
+            for symbol, name in FOREX_TICKERS.items():
+                p = prices.get(symbol, {})
+                price = p.get("price", 0)
+                prev = p.get("prev_close", price)
+                change_pct = ((price - prev) / prev * 100) if prev else 0
+                results.append({
+                    "ticker": symbol,
+                    "name": name,
+                    "price": round(price, 4),
+                    "change_pct": round(change_pct, 2),
+                })
 
-        results = []
-        for symbol, name in FOREX_TICKERS.items():
-            p = prices.get(symbol, {})
-            price = p.get("price", 0)
-            prev = p.get("prev_close", price)
-            change_pct = ((price - prev) / prev * 100) if prev else 0
-            results.append({
-                "ticker": symbol,
-                "name": name,
-                "price": round(price, 4),
-                "change_pct": round(change_pct, 2),
-            })
-
-        # If yfinance failed (all zeros), use akshare forex
-        if all(r["price"] == 0 for r in results):
-            from services.alt_data_sources import fetch_forex_akshare
-            ak_results = await asyncio.to_thread(fetch_forex_akshare)
-            if ak_results:
-                results = ak_results
-
-        await self._cache_set("forex", json.dumps(results), self.settings.cache_ttl_dashboard)
+        if results:
+            await self._cache_set("forex", json.dumps(results), self.settings.cache_ttl_dashboard)
         return results
 
     async def get_vix(self) -> Optional[float]:
