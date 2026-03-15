@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth";
 
 interface UpgradeModalProps {
   message: string;
@@ -9,7 +8,6 @@ interface UpgradeModalProps {
 }
 
 export default function UpgradeModal({ message, onClose }: UpgradeModalProps) {
-  const { user } = useAuth();
   const router = useRouter();
 
   return (
@@ -29,21 +27,12 @@ export default function UpgradeModal({ message, onClose }: UpgradeModalProps) {
             {message}
           </div>
           <div className="flex gap-2">
-            {user ? (
-              <button
-                onClick={() => { onClose(); router.push("/pricing"); }}
-                className="flex-1 py-2 bg-term-orange text-term-black text-xs font-bold hover:bg-term-orange-dim transition-colors"
-              >
-                VIEW PLANS
-              </button>
-            ) : (
-              <button
-                onClick={() => { onClose(); router.push("/login"); }}
-                className="flex-1 py-2 bg-term-orange text-term-black text-xs font-bold hover:bg-term-orange-dim transition-colors"
-              >
-                SIGN UP
-              </button>
-            )}
+            <button
+              onClick={() => { onClose(); router.push("/pricing"); }}
+              className="flex-1 py-2 bg-term-orange text-term-black text-xs font-bold hover:bg-term-orange-dim transition-colors"
+            >
+              VIEW PLANS
+            </button>
             <button
               onClick={onClose}
               className="px-4 py-2 bg-term-surface text-term-muted text-xs border border-term-border hover:text-term-white transition-colors"

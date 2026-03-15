@@ -17,10 +17,10 @@ export default function UpgradeBanner({ message, compact }: UpgradeBannerProps) 
         <span className="text-term-orange text-xs font-bold flex-shrink-0">LIMIT</span>
         <span className="text-xs text-term-text flex-1">{message}</span>
         <Link
-          href={user ? "/pricing" : "/login"}
+          href="/pricing"
           className="px-3 py-1 bg-term-orange text-term-black text-xxs font-bold hover:bg-term-orange-dim flex-shrink-0 transition-colors"
         >
-          {user ? "UPGRADE" : "LOGIN"}
+          UPGRADE
         </Link>
       </div>
     );
@@ -35,10 +35,10 @@ export default function UpgradeBanner({ message, compact }: UpgradeBannerProps) 
           <div className="text-xs text-term-text mb-3">{message}</div>
           <div className="flex items-center gap-2">
             <Link
-              href={user ? "/pricing" : "/login"}
+              href="/pricing"
               className="px-4 py-1.5 bg-term-orange text-term-black text-xs font-bold hover:bg-term-orange-dim transition-colors"
             >
-              {user ? "VIEW PLANS" : "LOGIN / SIGN UP"}
+              VIEW PLANS
             </Link>
             {user && (
               <span className="text-xxs text-term-dim">

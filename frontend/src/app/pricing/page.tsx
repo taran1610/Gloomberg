@@ -26,7 +26,7 @@ const TIERS = [
   },
   {
     name: "PRO",
-    price: "$29",
+    price: "$49",
     period: "/month",
     features: [
       "Everything in Free, plus:",
@@ -66,10 +66,7 @@ function PricingContent() {
   }, [success]);
 
   const handleUpgrade = async () => {
-    if (!user) {
-      router.push("/login");
-      return;
-    }
+    if (!user) return;
     setLoading(true);
     setError("");
     try {
@@ -233,13 +230,6 @@ function PricingContent() {
                         ? "BILLING NOT YET CONFIGURED"
                         : "UPGRADE TO PRO"}
                     </button>
-                  ) : !user ? (
-                    <Link
-                      href="/login"
-                      className="block py-2 text-center text-xs font-bold text-term-orange border border-term-orange hover:bg-term-orange hover:text-term-black transition-colors"
-                    >
-                      SIGN UP FREE
-                    </Link>
                   ) : null}
                 </div>
               </div>

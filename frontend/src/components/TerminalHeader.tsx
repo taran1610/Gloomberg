@@ -149,14 +149,14 @@ export default function TerminalHeader() {
                 LOGOUT
               </button>
             </>
-          ) : (
-            <Link
-              href="/login"
-              className="text-xxs text-term-orange hover:text-term-orange-dim font-bold transition-colors"
-            >
-              LOGIN
-            </Link>
-          )}
+          ) : null}
+          <span className="text-term-muted text-xxs">|</span>
+          <Link
+            href="/waitlist"
+            className="text-xxs text-term-orange hover:text-term-orange-dim font-bold transition-colors flex-shrink-0"
+          >
+            JOIN
+          </Link>
           <span className="text-term-muted text-xxs">|</span>
           <span className="w-1.5 h-1.5 bg-term-green pulse flex-shrink-0" />
           <span className="text-term-green text-xxs font-bold">LIVE</span>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import TerminalHeader from "@/components/TerminalHeader";
 import TickerTape from "@/components/TickerTape";
+import WaitlistPopup from "@/components/WaitlistPopup";
 import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({
             <main className="flex-1 overflow-auto relative z-10">{children}</main>
             <TickerTape />
           </div>
+          <WaitlistPopup />
         </AuthProvider>
       </body>
     </html>
