@@ -11,6 +11,8 @@ from config import get_settings
 from services.data_sources import (
     fetch_batch_prices_with_fallback,
     fetch_history_with_fallback,
+    fetch_asset_ak,
+    _is_us_stock_symbol,
 )
 from services.edgar_helper import (
     get_ownership_from_edgar,
@@ -192,6 +194,13 @@ class MarketDataService:
                 "change_pct": round(change_pct, 2),
             })
 
+        # If yfinance failed (all zeros), use ETF proxies via akshare
+        if all(r["price"] == 0 for r in results):
+            from services.alt_data_sources import fetch_indices_via_etf
+            etf_results = await asyncio.to_thread(fetch_indices_via_etf)
+            if etf_results:
+                results = etf_results
+
         await self._cache_set("indices", json.dumps(results), self.settings.cache_ttl_dashboard)
         return results
 
@@ -270,6 +279,13 @@ class MarketDataService:
                 "change_pct": round(change_pct, 2),
             })
 
+        # If yfinance failed (all zeros), use CoinGecko
+        if all(r["price"] == 0 for r in results):
+            from services.alt_data_sources import fetch_crypto_coingecko
+            cg_results = await asyncio.to_thread(fetch_crypto_coingecko)
+            if cg_results:
+                results = cg_results
+
         await self._cache_set("crypto", json.dumps(results), self.settings.cache_ttl_dashboard)
         return results
 
@@ -293,6 +309,13 @@ class MarketDataService:
                 "price": round(price, 2),
                 "change_pct": round(change_pct, 2),
             })
+
+        # If yfinance failed (all zeros), use akshare commodities
+        if all(r["price"] == 0 for r in results):
+            from services.alt_data_sources import fetch_commodities_akshare
+            ak_results = await asyncio.to_thread(fetch_commodities_akshare)
+            if ak_results:
+                results = ak_results
 
         await self._cache_set("commodities", json.dumps(results), self.settings.cache_ttl_dashboard)
         return results
@@ -318,6 +341,13 @@ class MarketDataService:
                 "change_pct": round(change_pct, 2),
             })
 
+        # If yfinance failed (all zeros), use akshare forex
+        if all(r["price"] == 0 for r in results):
+            from services.alt_data_sources import fetch_forex_akshare
+            ak_results = await asyncio.to_thread(fetch_forex_akshare)
+            if ak_results:
+                results = ak_results
+
         await self._cache_set("forex", json.dumps(results), self.settings.cache_ttl_dashboard)
         return results
 
@@ -337,6 +367,22 @@ class MarketDataService:
         info = await asyncio.to_thread(self._fetch_ticker_data, ticker)
         price = info.get("regularMarketPrice", info.get("currentPrice", info.get("previousClose", 0)))
         prev = info.get("regularMarketPreviousClose", info.get("previousClose", price))
+
+        # Akshare fallback when yfinance fails (429 rate limit, JSON decode errors)
+        if (not price or not prev) and _is_us_stock_symbol(ticker):
+            ak_data = await asyncio.to_thread(fetch_asset_ak, ticker)
+            if ak_data:
+                info = {
+                    **info,
+                    "regularMarketPrice": ak_data["price"],
+                    "currentPrice": ak_data["price"],
+                    "previousClose": ak_data["prev_close"],
+                    "regularMarketPreviousClose": ak_data["prev_close"],
+                    "shortName": ak_data.get("name", ticker),
+                }
+                price = ak_data["price"]
+                prev = ak_data["prev_close"]
+                logger.info(f"akshare fallback: got asset data for {ticker}")
         change = price - prev if prev else 0
         change_pct = (change / prev * 100) if prev else 0
 

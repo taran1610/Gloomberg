@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379"
     database_url: str = "postgresql+asyncpg://gloomberg:gloomberg@localhost:5432/gloomberg"
 
-    cache_ttl_dashboard: int = 300
+    cache_ttl_dashboard: int = 600  # 10 min - reduces Yahoo rate limit hits
     cache_ttl_ticker: int = 900
     cache_ttl_history: int = 3600
     cache_ttl_news: int = 1800

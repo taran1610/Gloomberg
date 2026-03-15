@@ -1,3 +1,4 @@
+import asyncio
 import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -62,7 +63,9 @@ async def generate_strategy(
     rec_strategy = strategy_info.get("recommended_strategy", "ma_crossover")
     rec_params = strategy_info.get("params", {})
 
-    backtest_result = run_backtest(ticker, rec_strategy, rec_params, period="2y")
+    backtest_result = await asyncio.to_thread(
+        run_backtest, ticker, rec_strategy, rec_params, "2y"
+    )
 
     backtest_response = None
     if "error" not in backtest_result:
@@ -96,7 +99,9 @@ async def backtest_strategy(
         raise HTTPException(status_code=402, detail=reason)
 
     ticker = request.ticker.upper()
-    result = run_backtest(ticker, request.strategy, request.params, request.period)
+    result = await asyncio.to_thread(
+        run_backtest, ticker, request.strategy, request.params or {}, request.period
+    )
 
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])

@@ -80,3 +80,32 @@ git push -u origin main
 
 - **Redis** (faster loads): See [docs/REDIS_SETUP.md](docs/REDIS_SETUP.md) for Upstash/Redis Cloud setup.
 - For more detail (Stripe, etc.), see **DEPLOY.md**.
+
+---
+
+## Live site shows less data than local?
+
+If your live site (Vercel) shows empty sections (indices, crypto, commodities, Rel Value, etc.) while local worked:
+
+1. **Check Vercel env vars**  
+   Vercel → Project → Settings → Environment Variables  
+   - `NEXT_PUBLIC_API_URL` must be your **Render backend URL** (e.g. `https://gloomberg-xxxx.onrender.com`).  
+   - If missing or wrong, the frontend will call `localhost:8000` and fail.
+
+2. **Check Render env vars**  
+   Render → Your backend → Environment  
+   - `FRONTEND_URL` = your Vercel URL (for CORS)  
+   - `REDIS_URL` = recommended (Upstash free tier) for caching  
+   - `OPENAI_API_KEY` = for AI chat/analysis  
+   - `EDGAR_IDENTITY` = your email (for ownership/insider data)
+
+3. **Redeploy both**  
+   - Push latest code to GitHub  
+   - Render auto-deploys; Vercel auto-deploys  
+   - Or use Manual Deploy in each dashboard
+
+4. **Wait for cache**  
+   Dashboard data is cached 10 min. If Redis had empty data, wait 10 min or flush Redis.
+
+5. **Yahoo rate limits**  
+   The backend uses akshare/CoinGecko fallbacks when Yahoo (yfinance) is rate limited. Ensure the latest backend code is deployed.

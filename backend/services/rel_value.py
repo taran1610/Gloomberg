@@ -1,6 +1,7 @@
 """
 Relative Value: peer comparison and normalized price chart (base 100).
 Returns peer list, comparison table (with median), and chart series for REL VALUE tab.
+Uses akshare fallback when yfinance is rate limited (live deployment).
 """
 import logging
 from typing import Optional
@@ -8,6 +9,21 @@ from typing import Optional
 import yfinance as yf
 import pandas as pd
 import numpy as np
+
+try:
+    from services.data_sources import (
+        fetch_history_df_with_fallback,
+        fetch_batch_prices_with_fallback,
+        fetch_asset_ak,
+        _is_us_stock_symbol,
+    )
+except ImportError:
+    from data_sources import (
+        fetch_history_df_with_fallback,
+        fetch_batch_prices_with_fallback,
+        fetch_asset_ak,
+        _is_us_stock_symbol,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -66,18 +82,16 @@ def get_rel_value_data(ticker: str, period: str = "1y") -> dict:
 
     chart_series = {}
     try:
-        # Download all peers in one call for efficiency
+        # Try yfinance batch first
         syms = " ".join(peer_tickers)
         df = yf.download(syms, period=yf_period, interval="1d", group_by="ticker", progress=False, threads=False, auto_adjust=True)
-        if df.empty:
-            pass
-        else:
+        if not df.empty:
+            ticker_names = df.columns.get_level_values(0).unique() if isinstance(df.columns, pd.MultiIndex) else [peer_tickers[0]] if len(peer_tickers) == 1 else []
             for sym in peer_tickers:
                 try:
-                    if sym in df.columns.get_level_values(0):
-                        sub = df[sym].copy()
-                    else:
+                    if sym not in ticker_names:
                         continue
+                    sub = df[sym].copy() if isinstance(df.columns, pd.MultiIndex) else df
                     if sub is None or sub.empty or "Close" not in sub.columns:
                         continue
                     sub = sub.dropna(subset=["Close"])
@@ -94,10 +108,34 @@ def get_rel_value_data(ticker: str, period: str = "1y") -> dict:
                     ]
                 except Exception as e:
                     logger.debug(f"Chart series for {sym}: {e}")
+
+        # Fallback: akshare for US stocks when yfinance chart is empty
+        if not chart_series:
+            for sym in peer_tickers:
+                if not _is_us_stock_symbol(sym):
+                    continue
+                try:
+                    hist = fetch_history_df_with_fallback(sym, yf_period)
+                    if hist is None or hist.empty or len(hist) < 2:
+                        continue
+                    close = hist["Close"].dropna()
+                    if len(close) < 2:
+                        continue
+                    base = float(close.iloc[0])
+                    if base <= 0:
+                        continue
+                    normalized = (close / base * 100).round(2)
+                    chart_series[sym] = [
+                        {"date": d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)[:10], "value": float(normalized.iloc[i])}
+                        for i, d in enumerate(normalized.index)
+                    ]
+                except Exception as e:
+                    logger.debug(f"Chart fallback for {sym}: {e}")
     except Exception as e:
         logger.error(f"Rel value chart download: {e}")
 
-    # Peer comparison: fetch info for each
+    # Peer comparison: fetch info for each (yfinance first, akshare fallback for US stocks)
+    prices_batch = fetch_batch_prices_with_fallback(peer_tickers)
     peers = []
     for sym in peer_tickers:
         try:
@@ -106,6 +144,20 @@ def get_rel_value_data(ticker: str, period: str = "1y") -> dict:
             hist = t.history(period="1mo", interval="1d")
             price = _safe_float(info.get("regularMarketPrice") or info.get("currentPrice") or info.get("previousClose"), 0)
             prev_close = _safe_float(info.get("regularMarketPreviousClose") or info.get("previousClose"), price)
+
+            # Akshare fallback when yfinance returns no price (rate limited on live)
+            if (not price or not prev_close) and _is_us_stock_symbol(sym):
+                ak = fetch_asset_ak(sym)
+                if ak:
+                    price = ak["price"]
+                    prev_close = ak["prev_close"]
+                    info = {**info, "shortName": ak.get("name", sym)}
+
+            if not price:
+                p = prices_batch.get(sym, {})
+                price = p.get("price")
+                prev_close = p.get("prev_close", price)
+
             chg_1d = ((price - prev_close) / prev_close * 100) if prev_close and prev_close != 0 else None
 
             chg_1m = None
@@ -114,6 +166,13 @@ def get_rel_value_data(ticker: str, period: str = "1y") -> dict:
                 last = float(hist["Close"].iloc[-1])
                 if first and first != 0:
                     chg_1m = round((last - first) / first * 100, 2)
+            elif _is_us_stock_symbol(sym):
+                hist_df = fetch_history_df_with_fallback(sym, "1mo")
+                if hist_df is not None and not hist_df.empty and len(hist_df) >= 2:
+                    first = float(hist_df["Close"].iloc[0])
+                    last = float(hist_df["Close"].iloc[-1])
+                    if first and first != 0:
+                        chg_1m = round((last - first) / first * 100, 2)
 
             rev_growth = info.get("revenueGrowth")
             if rev_growth is not None:
@@ -144,12 +203,17 @@ def get_rel_value_data(ticker: str, period: str = "1y") -> dict:
             })
         except Exception as e:
             logger.debug(f"Peer {sym}: {e}")
+            # Last resort: use batch price if available
+            p = prices_batch.get(sym, {})
+            price = p.get("price")
+            prev_close = p.get("prev_close", price)
+            chg_1d = ((price - prev_close) / prev_close * 100) if prev_close and prev_close != 0 else None
             peers.append({
                 "ticker": sym,
                 "name": sym,
                 "market_cap": None,
-                "last_px": None,
-                "chg_pct_1d": None,
+                "last_px": round(price, 2) if price else None,
+                "chg_pct_1d": round(chg_1d, 2) if chg_1d is not None else None,
                 "chg_pct_1m": None,
                 "rev_growth_1y": None,
                 "eps_growth_1y": None,

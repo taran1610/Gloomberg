@@ -19,11 +19,13 @@ except ImportError:
 
 
 def _is_us_stock_symbol(symbol: str) -> bool:
-    """Heuristic: US stocks are typically 1-5 letters, no ^, =, or -USD."""
+    """Heuristic: US stocks are typically 1-5 chars, no ^, =, or -USD. Allows BRK-B style."""
     s = symbol.upper()
     if s.startswith("^") or "=" in s or "=X" in s or "-USD" in s or "-USDT" in s:
         return False
-    return len(s) <= 5 and s.isalpha()
+    # Allow letters and single hyphen (e.g. BRK-B)
+    clean = s.replace("-", "")
+    return len(s) <= 6 and clean.isalpha() and len(clean) >= 2
 
 
 def fetch_history_ak(symbol: str, period: str = "1y") -> Optional[pd.DataFrame]:
@@ -71,6 +73,25 @@ def fetch_history_ak(symbol: str, period: str = "1y") -> Optional[pd.DataFrame]:
         return None
 
 
+def fetch_asset_ak(symbol: str) -> Optional[dict]:
+    """Build minimal asset dict from akshare for US stocks when yfinance fails.
+    Returns {price, prev_close, name} or None."""
+    if not _akshare_available or not _is_us_stock_symbol(symbol):
+        return None
+    try:
+        p = fetch_price_ak(symbol)
+        if not p:
+            return None
+        return {
+            "price": p["price"],
+            "prev_close": p["prev_close"],
+            "name": symbol,
+        }
+    except Exception as e:
+        logger.warning(f"akshare asset fallback failed for {symbol}: {e}")
+        return None
+
+
 def fetch_price_ak(symbol: str) -> Optional[dict]:
     """Fetch US stock price via akshare. Returns {price, prev_close} or None."""
     if not _akshare_available:
@@ -110,14 +131,14 @@ def fetch_history_yf(symbol: str, period: str = "1y", interval: str = "1d") -> O
 
 def fetch_history_with_fallback(symbol: str, period: str = "1y", interval: str = "1d") -> list[dict]:
     """
-    Fetch OHLCV history. Tries yfinance first, then akshare for US stocks.
+    Fetch OHLCV history. For US stocks: try akshare first (avoids Yahoo rate limits).
     Returns list of {time, open, high, low, close, volume}.
     """
-    hist = fetch_history_yf(symbol, period, interval)
-    if hist is None and _is_us_stock_symbol(symbol):
-        df = fetch_history_ak(symbol, period)
-        if df is not None:
-            hist = df
+    hist = None
+    if _is_us_stock_symbol(symbol) and _akshare_available:
+        hist = fetch_history_ak(symbol, period)
+    if hist is None:
+        hist = fetch_history_yf(symbol, period, interval)
     if hist is None or hist.empty:
         return []
     records = []
@@ -138,49 +159,91 @@ def fetch_history_with_fallback(symbol: str, period: str = "1y", interval: str =
 
 def fetch_history_df_with_fallback(symbol: str, period: str = "2y") -> Optional[pd.DataFrame]:
     """
-    Fetch OHLCV as DataFrame for backtesting. Tries yfinance first, then akshare for US stocks.
+    Fetch OHLCV as DataFrame for backtesting. For US stocks: try akshare first.
     Returns DataFrame with Open, High, Low, Close, Volume columns and DatetimeIndex.
     """
-    hist = fetch_history_yf(symbol, period, "1d")
-    if hist is None and _is_us_stock_symbol(symbol):
+    hist = None
+    if _is_us_stock_symbol(symbol) and _akshare_available:
         hist = fetch_history_ak(symbol, period)
+    if hist is None:
+        hist = fetch_history_yf(symbol, period, "1d")
     return hist
+
+
+def _fetch_single_price_yf(symbol: str) -> Optional[dict]:
+    """Fetch one symbol via yf.Ticker().history(). Works for indices, crypto, commodities, forex."""
+    try:
+        ticker = yf.Ticker(symbol)
+        hist = ticker.history(period="5d", interval="1d")
+        if hist is None or hist.empty or len(hist) < 1:
+            return None
+        hist = hist.dropna(subset=["Close"])
+        if len(hist) < 1:
+            return None
+        price = float(hist["Close"].iloc[-1])
+        prev = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else price
+        return {"price": round(price, 2), "prev_close": round(prev, 2)}
+    except Exception as e:
+        logger.debug(f"yfinance single fetch failed for {symbol}: {e}")
+        return None
 
 
 def fetch_batch_prices_with_fallback(symbols: list[str]) -> dict[str, dict]:
     """
-    Fetch prices for multiple symbols. Uses yfinance first.
-    For failed symbols that are US stocks, tries akshare per-symbol.
+    Fetch prices for multiple symbols.
+    For US stocks: try akshare FIRST to avoid Yahoo rate limits (429).
+    For indices/crypto/commodities/forex: use yfinance with per-symbol fallback.
     """
     results = {}
-    try:
-        df = yf.download(
-            " ".join(symbols),
-            period="5d",
-            interval="1d",
-            group_by="ticker",
-            progress=False,
-            threads=False,
-        )
-        if not df.empty:
-            for sym in symbols:
-                try:
-                    if sym in df.columns.get_level_values(0):
-                        sub = df[sym]
-                    else:
-                        continue
-                    if sub is None or sub.empty:
-                        continue
-                    sub = sub.dropna(subset=["Close"])
-                    if len(sub) < 1:
-                        continue
-                    price = float(sub["Close"].iloc[-1])
-                    prev = float(sub["Close"].iloc[-2]) if len(sub) >= 2 else price
-                    results[sym] = {"price": round(price, 2), "prev_close": round(prev, 2)}
-                except Exception:
-                    pass
-    except Exception as e:
-        logger.warning(f"yfinance batch download failed: {e}")
+
+    # Try akshare first for US-stock-only lists (sectors, gainers) - avoids Yahoo entirely
+    us_only = all(_is_us_stock_symbol(s) for s in symbols)
+    if us_only and _akshare_available:
+        for sym in symbols:
+            p = fetch_price_ak(sym)
+            if p:
+                results[sym] = p
+        if len(results) == len(symbols):
+            return results
+        # Partial success - fill rest via yfinance below
+        if results:
+            logger.info(f"akshare primary: got {len(results)}/{len(symbols)} US stock prices")
+
+    # yfinance batch (skip if we already have everything from akshare)
+    if len(results) < len(symbols):
+        try:
+            missing = [s for s in symbols if s not in results]
+            df = yf.download(
+                " ".join(missing),
+                period="5d",
+                interval="1d",
+                group_by="ticker",
+                progress=False,
+                threads=False,
+            )
+            if not df.empty:
+                if isinstance(df.columns, pd.MultiIndex):
+                    ticker_names = df.columns.get_level_values(0).unique()
+                else:
+                    ticker_names = [missing[0]] if len(missing) == 1 else []
+
+                for sym in missing:
+                    try:
+                        if sym not in ticker_names:
+                            continue
+                        sub = df[sym].copy() if isinstance(df.columns, pd.MultiIndex) else df
+                        if sub is None or sub.empty:
+                            continue
+                        sub = sub.dropna(subset=["Close"])
+                        if len(sub) < 1:
+                            continue
+                        price = float(sub["Close"].iloc[-1])
+                        prev = float(sub["Close"].iloc[-2]) if len(sub) >= 2 else price
+                        results[sym] = {"price": round(price, 2), "prev_close": round(prev, 2)}
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.warning(f"yfinance batch download failed: {e}")
 
     # Fallback: akshare for missing US stocks
     for sym in symbols:
@@ -190,6 +253,13 @@ def fetch_batch_prices_with_fallback(symbols: list[str]) -> dict[str, dict]:
             p = fetch_price_ak(sym)
             if p:
                 results[sym] = p
-                logger.info(f"akshare fallback: got price for {sym}")
+
+    # Fallback: per-symbol yfinance for indices, crypto, commodities, forex
+    for sym in symbols:
+        if sym in results:
+            continue
+        p = _fetch_single_price_yf(sym)
+        if p:
+            results[sym] = p
 
     return results

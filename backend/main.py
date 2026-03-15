@@ -20,6 +20,8 @@ from api.research import router as research_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+# Reduce yfinance noise when Yahoo rate limits (429) - we use akshare fallback
+logging.getLogger("yfinance").setLevel(logging.CRITICAL)
 
 settings = get_settings()
 

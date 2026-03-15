@@ -267,7 +267,10 @@ export default function StrategyPage() {
               <div className="px-3 py-2 bg-term-red/10 border-b border-term-red/30 text-term-red text-xs flex items-center justify-between gap-2">
                 <span>ERROR: {error}</span>
                 <button
-                  onClick={handleBacktest}
+                  onClick={() => {
+                    setError("");
+                    handleBacktest();
+                  }}
                   disabled={loading}
                   className="px-2 py-1 bg-term-orange text-term-black text-xxs font-bold hover:opacity-80 shrink-0 disabled:opacity-50"
                 >
@@ -397,7 +400,7 @@ export default function StrategyPage() {
                     for automated strategy creation.
                   </div>
                   <div className="text-term-muted text-xxs mt-2 max-w-sm">
-                    If RUN BACKTEST fails, the backend may be cold starting. Wait 1 min and try again, or try a different ticker (e.g. AAPL, SPY).
+                    If RUN BACKTEST fails, wait 1 min (backend may be cold starting) and click RETRY, or try a different ticker (e.g. AAPL, SPY).
                   </div>
                 </div>
               </div>

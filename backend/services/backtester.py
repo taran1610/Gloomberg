@@ -65,13 +65,22 @@ def _build_equity_curve_output(equity_curve: pd.Series) -> list[dict]:
 def run_backtest(ticker: str, strategy: str, params: dict, period: str = "2y") -> dict:
     """Run a backtest for the given ticker and strategy. Uses yfinance with akshare fallback for US stocks."""
     try:
+        params = params or {}
         period = (period or "2y").lower()
         df = fetch_history_df_with_fallback(ticker, period)
         if df is None or df.empty or len(df) < 50:
+            # Try longer period for US stocks
             if period != "max" and _is_us_stock_symbol(ticker):
                 df = fetch_history_df_with_fallback(ticker, "max")
             if df is None or df.empty or len(df) < 50:
-                return {"error": f"Insufficient data for {ticker} (got {len(df) if df is not None else 0} rows, need 50+). Try a different ticker or check if it's tradeable."}
+                # Try shorter period as last resort
+                for fallback in ("1y", "6mo"):
+                    if fallback != period:
+                        df = fetch_history_df_with_fallback(ticker, fallback)
+                        if df is not None and not df.empty and len(df) >= 50:
+                            break
+            if df is None or df.empty or len(df) < 50:
+                return {"error": f"Insufficient data for {ticker} (got {len(df) if df is not None else 0} rows, need 50+). Try AAPL, SPY, or another liquid ticker."}
 
         df = compute_indicator_series(df)
 

@@ -1,11 +1,13 @@
 """
 Compute correlation and linear regression between an asset and a benchmark (SPY).
 Returns scatter points, regression stats, and normalized overlay data.
+Uses fetch_history_df_with_fallback (yfinance + akshare) to avoid Yahoo rate limits.
 """
 import pandas as pd
 import numpy as np
-import yfinance as yf
 import logging
+
+from services.data_sources import fetch_history_df_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -13,15 +15,30 @@ BENCHMARK = "SPY"
 DEFAULT_PERIOD = "1y"
 
 
-def compute_weekly_returns(ticker: str, period: str = DEFAULT_PERIOD) -> pd.DataFrame:
-    """Fetch weekly OHLC and compute weekly % returns for ticker and benchmark."""
-    try:
-        t = yf.Ticker(ticker)
-        b = yf.Ticker(BENCHMARK)
-        df_t = t.history(period=period, interval="1wk")
-        df_b = b.history(period=period, interval="1wk")
+def _daily_to_weekly(df: pd.DataFrame) -> pd.DataFrame:
+    """Resample daily OHLCV to weekly (Friday close)."""
+    if df is None or df.empty or "Close" not in df.columns:
+        return pd.DataFrame()
+    w = df.resample("W-FRI").agg(
+        {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
+    ).dropna(subset=["Close"])
+    return w
 
-        if df_t.empty or df_b.empty or len(df_t) < 5:
+
+def compute_weekly_returns(ticker: str, period: str = DEFAULT_PERIOD) -> pd.DataFrame:
+    """Fetch weekly OHLC and compute weekly % returns for ticker and benchmark.
+    Uses akshare fallback for US stocks when yfinance is rate limited."""
+    try:
+        df_t = fetch_history_df_with_fallback(ticker, period)
+        df_b = fetch_history_df_with_fallback(BENCHMARK, period)
+
+        if df_t is None or df_t.empty or df_b is None or df_b.empty:
+            return pd.DataFrame()
+
+        df_t = _daily_to_weekly(df_t)
+        df_b = _daily_to_weekly(df_b)
+
+        if len(df_t) < 5 or len(df_b) < 5:
             return pd.DataFrame()
 
         df_t["ret"] = df_t["Close"].pct_change() * 100
