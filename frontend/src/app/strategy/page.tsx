@@ -264,8 +264,15 @@ export default function StrategyPage() {
           {/* Right: Results (9 cols) */}
           <div className="col-span-9 flex flex-col overflow-auto">
             {error && (
-              <div className="px-3 py-2 bg-term-red/10 border-b border-term-red/30 text-term-red text-xs">
-                ERROR: {error}
+              <div className="px-3 py-2 bg-term-red/10 border-b border-term-red/30 text-term-red text-xs flex items-center justify-between gap-2">
+                <span>ERROR: {error}</span>
+                <button
+                  onClick={handleBacktest}
+                  disabled={loading}
+                  className="px-2 py-1 bg-term-orange text-term-black text-xxs font-bold hover:opacity-80 shrink-0 disabled:opacity-50"
+                >
+                  RETRY
+                </button>
               </div>
             )}
 
@@ -388,6 +395,9 @@ export default function StrategyPage() {
                     or use <span className="text-term-orange font-bold">AI GENERATE</span>{" "}
                     <span className="text-xxs bg-term-orange/20 text-term-orange px-1 py-0.5">PRO</span>{" "}
                     for automated strategy creation.
+                  </div>
+                  <div className="text-term-muted text-xxs mt-2 max-w-sm">
+                    If RUN BACKTEST fails, the backend may be cold starting. Wait 1 min and try again, or try a different ticker (e.g. AAPL, SPY).
                   </div>
                 </div>
               </div>

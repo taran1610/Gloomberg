@@ -1,8 +1,12 @@
+import asyncio
+import logging
+
 from fastapi import APIRouter, Depends, Query
 from services.market_data import MarketDataService
 from models.schemas import DashboardResponse, SearchResult
 
 router = APIRouter(prefix="/api/market", tags=["market"])
+logger = logging.getLogger(__name__)
 
 
 def get_market_service():
@@ -18,13 +22,32 @@ def get_ai_service():
 @router.get("/dashboard", response_model=DashboardResponse)
 async def get_dashboard():
     svc = get_market_service()
-    indices = await svc.get_indices()
-    gainers, losers = await svc.get_gainers_losers()
-    sectors = await svc.get_sectors()
-    crypto = await svc.get_crypto()
-    commodities = await svc.get_commodities()
-    forex = await svc.get_forex()
-    vix = await svc.get_vix()
+    # Fetch all in parallel; if one fails, use empty default so dashboard still loads
+    results = await asyncio.gather(
+        svc.get_indices(),
+        svc.get_gainers_losers(),
+        svc.get_sectors(),
+        svc.get_crypto(),
+        svc.get_commodities(),
+        svc.get_forex(),
+        svc.get_vix(),
+        return_exceptions=True,
+    )
+    def ok(i: int, default):
+        r = results[i]
+        if isinstance(r, BaseException):
+            logger.warning(f"Dashboard fetch {i} failed: {r}")
+            return default
+        return r
+
+    indices = ok(0, [])
+    gl = ok(1, ([], []))
+    gainers, losers = gl if isinstance(gl, tuple) else ([], [])
+    sectors = ok(2, [])
+    crypto = ok(3, [])
+    commodities = ok(4, [])
+    forex = ok(5, [])
+    vix = ok(6, None)
 
     ai_summary = None
     ai = get_ai_service()

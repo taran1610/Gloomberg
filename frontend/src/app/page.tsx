@@ -42,6 +42,9 @@ export default function DashboardPage() {
         <div className="text-center">
           <div className="text-term-orange text-sm mb-2">LOADING MARKET DATA...</div>
           <div className="text-term-dim text-xs">Connecting to data feeds</div>
+          <div className="text-term-muted text-xxs mt-3 max-w-xs mx-auto">
+            First load can take 30–60s if the backend is waking up (Render free tier). If it hangs, click RETRY after a minute.
+          </div>
         </div>
       </div>
     );

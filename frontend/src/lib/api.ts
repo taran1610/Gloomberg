@@ -1,15 +1,36 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+/** Fetch timeout in ms. Dashboard/backtest can be slow on Render cold start (50-60s). */
+const FETCH_TIMEOUT_MS = 90000;
+
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
   const token = localStorage.getItem("gloomberg_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit & { timeout?: number } = {}
+): Promise<Response> {
+  const { timeout = FETCH_TIMEOUT_MS, ...fetchOptions } = options;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, {
+      ...fetchOptions,
+      signal: controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    res = await fetchWithTimeout(`${API_BASE}${path}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -18,17 +39,21 @@ async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
       },
     });
   } catch (e) {
-    const err = e as Error & { cause?: { code?: string } };
+    const err = e as Error & { cause?: { code?: string }; name?: string };
+    const isAbort = err.name === "AbortError";
     const isConnection =
       err instanceof Error &&
       (err.message === "fetch failed" ||
         err.message.includes("Failed to fetch") ||
         err.cause?.code === "ECONNREFUSED");
-    const msg = isConnection
-      ? "Cannot reach backend. Start the API (e.g. uvicorn in backend/) and ensure it runs on port 8000."
-      : err instanceof Error
-        ? err.message
-        : "Network error";
+    let msg: string;
+    if (isAbort) {
+      msg = "Request timed out. Backend may be waking up (Render cold start). Wait 30–60 seconds and click RETRY.";
+    } else if (isConnection) {
+      msg = "Cannot reach backend. Check NEXT_PUBLIC_API_URL. If on Render, the backend may be cold starting—wait 1 min and RETRY.";
+    } else {
+      msg = err instanceof Error ? err.message : "Network error";
+    }
     throw new Error(msg);
   }
   if (!res.ok) {
