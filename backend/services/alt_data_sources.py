@@ -10,14 +10,15 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Index -> ETF proxy (US stocks, akshare works)
+# Index -> (ETF proxy, display name, multiplier to convert ETF price to index level)
+# Verified ratios: SPY~10x, QQQ~41x (slickcharts.com/nasdaq100/ratio), DIA=1/100 of Dow
 INDEX_ETF_PROXY = {
-    "^GSPC": ("SPY", "S&P 500"),
-    "^IXIC": ("QQQ", "NASDAQ"),
-    "^DJI": ("DIA", "Dow Jones"),
-    "^RUT": ("IWM", "Russell 2000"),
-    "^FTSE": ("EWU", "FTSE 100"),
-    "^N225": ("EWJ", "Nikkei 225"),
+    "^GSPC": ("SPY", "S&P 500", 10.2),      # S&P 500 ~6000 / SPY ~588
+    "^IXIC": ("QQQ", "NASDAQ", 41.06),      # Nasdaq-100/QQQ = 41.06 (slickcharts)
+    "^DJI": ("DIA", "Dow Jones", 100.0),    # DIA = ~1/100 of Dow by design
+    "^RUT": ("IWM", "Russell 2000", 10.5),  # Russell ~2100 / IWM ~200
+    "^FTSE": ("EWU", "FTSE 100", 222.0),    # FTSE 100 ~10000 / EWU ~45
+    "^N225": ("EWJ", "Nikkei 225", 500.0),  # Nikkei ~40000 / EWJ ~80
 }
 
 # CoinGecko coin IDs
@@ -53,22 +54,28 @@ COMMODITY_AKSHARE_MAP = {
 
 
 def fetch_indices_via_etf() -> list[dict]:
-    """Fetch index data via ETF proxies (SPY, QQQ, etc.) using akshare."""
+    """Fetch index data via ETF proxies (SPY, QQQ, etc.) using akshare.
+    Scales ETF prices to approximate real index levels (e.g. SPY*9.67 ≈ S&P 500)."""
     try:
         from services.data_sources import fetch_price_ak, _is_us_stock_symbol
     except ImportError:
         from data_sources import fetch_price_ak, _is_us_stock_symbol
 
     results = []
-    for yf_symbol, (etf, name) in INDEX_ETF_PROXY.items():
+    for yf_symbol, (etf, name, mult) in INDEX_ETF_PROXY.items():
         p = fetch_price_ak(etf)
         if p and p.get("price") and p.get("prev_close"):
-            change = p["price"] - p["prev_close"]
-            change_pct = (change / p["prev_close"] * 100) if p["prev_close"] else 0
+            etf_price = p["price"]
+            etf_prev = p["prev_close"]
+            # Scale to real index level
+            price = etf_price * mult
+            prev = etf_prev * mult
+            change = price - prev
+            change_pct = (change / prev * 100) if prev else 0
             results.append({
                 "name": name,
                 "ticker": yf_symbol,
-                "price": round(p["price"], 2),
+                "price": round(price, 2),
                 "change": round(change, 2),
                 "change_pct": round(change_pct, 2),
             })

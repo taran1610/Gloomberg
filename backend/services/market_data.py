@@ -25,6 +25,9 @@ from services.dummy_data import (
     get_dummy_insider_transactions,
     get_dummy_news,
     get_dummy_candles,
+    DUMMY_CRYPTO,
+    DUMMY_COMMODITIES,
+    DUMMY_FOREX,
 )
 
 logger = logging.getLogger(__name__)
@@ -290,9 +293,12 @@ class MarketDataService:
                     "change_pct": round(change_pct, 2),
                 })
 
+        # Never show zeros: use dummy when all prices are 0
+        if results and all(r.get("price", 0) == 0 for r in results):
+            results = DUMMY_CRYPTO
         if results:
             await self._cache_set("crypto", json.dumps(results), self.settings.cache_ttl_dashboard)
-        return results
+        return results or DUMMY_CRYPTO
 
     async def get_commodities(self) -> list[dict]:
         cached = await self._cache_get("commodities")
@@ -318,9 +324,12 @@ class MarketDataService:
                     "change_pct": round(change_pct, 2),
                 })
 
+        # Never show zeros: use dummy when all prices are 0
+        if results and all(r.get("price", 0) == 0 for r in results):
+            results = DUMMY_COMMODITIES
         if results:
             await self._cache_set("commodities", json.dumps(results), self.settings.cache_ttl_dashboard)
-        return results
+        return results or DUMMY_COMMODITIES
 
     async def get_forex(self) -> list[dict]:
         cached = await self._cache_get("forex")
@@ -346,9 +355,12 @@ class MarketDataService:
                     "change_pct": round(change_pct, 2),
                 })
 
+        # Never show zeros: use dummy when all prices are 0
+        if results and all(r.get("price", 0) == 0 for r in results):
+            results = DUMMY_FOREX
         if results:
             await self._cache_set("forex", json.dumps(results), self.settings.cache_ttl_dashboard)
-        return results
+        return results or DUMMY_FOREX
 
     async def get_vix(self) -> Optional[float]:
         try:

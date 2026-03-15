@@ -30,22 +30,36 @@ DUMMY_SECTORS = [
     {"name": "Healthcare", "change_pct": 0.18},
 ]
 
-# Crypto
+# Crypto - full list to match dashboard
 DUMMY_CRYPTO = [
     {"ticker": "BTC-USD", "name": "Bitcoin", "price": 98000.0, "change_pct": 0.5},
     {"ticker": "ETH-USD", "name": "Ethereum", "price": 3650.0, "change_pct": -0.2},
+    {"ticker": "SOL-USD", "name": "Solana", "price": 245.0, "change_pct": 1.2},
+    {"ticker": "BNB-USD", "name": "BNB", "price": 685.0, "change_pct": -0.3},
+    {"ticker": "XRP-USD", "name": "XRP", "price": 2.45, "change_pct": 0.8},
+    {"ticker": "ADA-USD", "name": "Cardano", "price": 1.12, "change_pct": -0.5},
 ]
 
-# Commodities
+# Commodities - full list to match dashboard
 DUMMY_COMMODITIES = [
     {"ticker": "GC=F", "name": "Gold", "price": 2650.0, "change_pct": 0.15},
-    {"ticker": "CL=F", "name": "Crude Oil", "price": 78.50, "change_pct": -0.3},
+    {"ticker": "SI=F", "name": "Silver", "price": 31.50, "change_pct": -0.5},
+    {"ticker": "CL=F", "name": "Crude Oil WTI", "price": 78.50, "change_pct": -0.3},
+    {"ticker": "BZ=F", "name": "Brent Crude", "price": 82.20, "change_pct": -0.2},
+    {"ticker": "NG=F", "name": "Natural Gas", "price": 3.12, "change_pct": -2.1},
+    {"ticker": "HG=F", "name": "Copper", "price": 4.25, "change_pct": 0.8},
+    {"ticker": "PL=F", "name": "Platinum", "price": 1025.0, "change_pct": -0.4},
 ]
 
-# Forex
+# Forex - full list to match dashboard
 DUMMY_FOREX = [
     {"ticker": "EURUSD=X", "name": "EUR/USD", "price": 1.0850, "change_pct": 0.05},
-    {"ticker": "USDJPY=X", "name": "USD/JPY", "price": 149.50, "change_pct": -0.12},
+    {"ticker": "GBPUSD=X", "name": "GBP/USD", "price": 1.2650, "change_pct": -0.12},
+    {"ticker": "USDJPY=X", "name": "USD/JPY", "price": 149.50, "change_pct": 0.24},
+    {"ticker": "AUDUSD=X", "name": "AUD/USD", "price": 0.6520, "change_pct": -0.35},
+    {"ticker": "USDCAD=X", "name": "USD/CAD", "price": 1.3620, "change_pct": 0.08},
+    {"ticker": "USDCHF=X", "name": "USD/CHF", "price": 0.8850, "change_pct": -0.15},
+    {"ticker": "DX-Y.NYB", "name": "US Dollar Index", "price": 104.25, "change_pct": 0.22},
 ]
 
 

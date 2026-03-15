@@ -73,6 +73,11 @@ async def get_dashboard():
         commodities = DUMMY_COMMODITIES
     if not forex:
         forex = DUMMY_FOREX
+    # Never show zeros: replace with dummy when all prices are 0
+    if crypto and all(c.get("price", 0) == 0 for c in crypto):
+        crypto = DUMMY_CRYPTO
+    if forex and all(f.get("price", 0) == 0 for f in forex):
+        forex = DUMMY_FOREX
 
     ai_summary = None
     ai = get_ai_service()
