@@ -94,39 +94,39 @@ function PricingContent() {
 
   return (
     <div className="h-full overflow-auto">
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-6 py-6">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-term-orange font-bold text-lg mb-1">PLANS & PRICING</h1>
-          <p className="text-term-dim text-xs">
+          <h1 className="text-term-orange font-bold text-3xl mb-2">PLANS & PRICING</h1>
+          <p className="text-term-dim text-base">
             Upgrade to unlock the full power of Gloomberg Terminal
           </p>
         </div>
 
         {/* Success / Cancel banners */}
         {success && (
-          <div className="mb-6 px-3 py-2 bg-term-green/10 border border-term-green/30 text-term-green text-xs text-center">
+          <div className="mb-6 px-4 py-3 bg-term-green/10 border border-term-green/30 text-term-green text-base text-center">
             Subscription activated. Welcome to Pro.
           </div>
         )}
         {canceled && (
-          <div className="mb-6 px-3 py-2 bg-term-yellow/10 border border-term-yellow/30 text-term-yellow text-xs text-center">
+          <div className="mb-6 px-4 py-3 bg-term-yellow/10 border border-term-yellow/30 text-term-yellow text-base text-center">
             Checkout canceled. No charges were made.
           </div>
         )}
 
         {error && (
-          <div className="mb-6 px-3 py-2 bg-term-red/10 border border-term-red/30 text-term-red text-xs text-center">
+          <div className="mb-6 px-4 py-3 bg-term-red/10 border border-term-red/30 text-term-red text-base text-center">
             {error}
           </div>
         )}
 
         {/* Usage banner for logged-in users */}
         {user && (
-          <div className="mb-6 border border-term-border bg-term-bg p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xxs text-term-muted uppercase">Your Plan</span>
-              <span className={`text-xs font-bold px-2 py-0.5 ${
+          <div className="mb-6 border border-term-border bg-term-bg p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-term-muted uppercase">Your Plan</span>
+              <span className={`text-base font-bold px-3 py-1 ${
                 user.plan === "pro"
                   ? "bg-term-orange/20 text-term-orange"
                   : "bg-term-surface text-term-muted"
@@ -134,22 +134,22 @@ function PricingContent() {
                 {user.plan.toUpperCase()}
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-3 gap-4 text-center">
               <div>
-                <div className="text-xxs text-term-dim">AI Messages</div>
-                <div className="text-sm font-bold text-term-white tabular-nums">
+                <div className="text-sm text-term-dim">AI Messages</div>
+                <div className="text-lg font-bold text-term-white tabular-nums">
                   {user.usage.ai_messages} / {user.limits.ai_messages_per_day}
                 </div>
               </div>
               <div>
-                <div className="text-xxs text-term-dim">Backtests</div>
-                <div className="text-sm font-bold text-term-white tabular-nums">
+                <div className="text-sm text-term-dim">Backtests</div>
+                <div className="text-lg font-bold text-term-white tabular-nums">
                   {user.usage.backtests} / {user.limits.backtests_per_day}
                 </div>
               </div>
               <div>
-                <div className="text-xxs text-term-dim">AI Strategy Gen</div>
-                <div className={`text-sm font-bold ${
+                <div className="text-sm text-term-dim">AI Strategy Gen</div>
+                <div className={`text-lg font-bold ${
                   user.limits.ai_strategy_generator ? "text-term-green" : "text-term-red"
                 }`}>
                   {user.limits.ai_strategy_generator ? "ENABLED" : "LOCKED"}
@@ -160,7 +160,7 @@ function PricingContent() {
               <button
                 onClick={handlePortal}
                 disabled={loading}
-                className="mt-3 w-full py-1.5 text-xxs text-term-dim border border-term-border hover:text-term-white hover:border-term-dim transition-colors disabled:opacity-30"
+                className="mt-4 w-full py-2.5 text-sm text-term-dim border border-term-border hover:text-term-white hover:border-term-dim transition-colors disabled:opacity-30"
               >
                 MANAGE SUBSCRIPTION
               </button>
@@ -169,7 +169,7 @@ function PricingContent() {
         )}
 
         {/* Tier cards */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-6">
           {TIERS.map((tier) => {
             const isCurrent = user?.plan === tier.plan;
             const isUpgrade = tier.plan === "pro" && user?.plan !== "pro";
@@ -183,44 +183,44 @@ function PricingContent() {
                 }`}
               >
                 {tier.plan === "pro" && (
-                  <div className="bg-term-orange text-term-black text-xxs font-bold text-center py-1">
+                  <div className="bg-term-orange text-term-black text-sm font-bold text-center py-2">
                     RECOMMENDED
                   </div>
                 )}
 
-                <div className="p-4 flex-1 flex flex-col">
-                  <div className="mb-3">
-                    <div className="text-term-white font-bold text-sm">{tier.name}</div>
-                    <div className="flex items-baseline gap-1 mt-1">
-                      <span className="text-2xl font-bold text-term-orange">{tier.price}</span>
-                      <span className="text-xxs text-term-dim">{tier.period}</span>
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="mb-5">
+                    <div className="text-term-white font-bold text-xl">{tier.name}</div>
+                    <div className="flex items-baseline gap-2 mt-2">
+                      <span className="text-4xl font-bold text-term-orange">{tier.price}</span>
+                      <span className="text-sm text-term-dim">{tier.period}</span>
                     </div>
                   </div>
 
-                  <div className="flex-1 space-y-1.5 mb-4">
+                  <div className="flex-1 space-y-3 mb-6">
                     {tier.features.map((f) => (
-                      <div key={f} className="flex items-start gap-2 text-xs">
-                        <span className="text-term-green mt-0.5 flex-shrink-0">+</span>
+                      <div key={f} className="flex items-start gap-3 text-base">
+                        <span className="text-term-green mt-0.5 flex-shrink-0 text-lg">+</span>
                         <span className="text-term-text">{f}</span>
                       </div>
                     ))}
                     {tier.excluded.map((f) => (
-                      <div key={f} className="flex items-start gap-2 text-xs">
-                        <span className="text-term-red mt-0.5 flex-shrink-0">-</span>
+                      <div key={f} className="flex items-start gap-3 text-base">
+                        <span className="text-term-red mt-0.5 flex-shrink-0 text-lg">-</span>
                         <span className="text-term-dim line-through">{f}</span>
                       </div>
                     ))}
                   </div>
 
                   {isCurrent ? (
-                    <div className="py-2 text-center text-xs font-bold text-term-muted bg-term-surface border border-term-border">
+                    <div className="py-3 text-center text-base font-bold text-term-muted bg-term-surface border border-term-border">
                       CURRENT PLAN
                     </div>
                   ) : isUpgrade ? (
                     <button
                       onClick={handleUpgrade}
                       disabled={loading || (checkingBilling ? true : !billingConfigured)}
-                      className="w-full py-2 bg-term-orange text-term-black text-xs font-bold hover:bg-term-orange-dim disabled:opacity-30 transition-colors"
+                      className="w-full py-3 bg-term-orange text-term-black text-base font-bold hover:bg-term-orange-dim disabled:opacity-30 transition-colors"
                     >
                       {loading
                         ? "PROCESSING..."
@@ -238,9 +238,9 @@ function PricingContent() {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 text-center text-xxs text-term-dim">
+        <div className="mt-8 text-center text-sm text-term-dim">
           <p>All plans include unlimited access to the market dashboard and asset pages.</p>
-          <p className="mt-1">Usage resets daily at midnight UTC. Cancel anytime.</p>
+          <p className="mt-2">Usage resets daily at midnight UTC. Cancel anytime.</p>
         </div>
       </div>
     </div>

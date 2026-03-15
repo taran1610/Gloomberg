@@ -51,6 +51,8 @@ const config: Config = {
         xl: ["16px", { lineHeight: "22px" }],
         "2xl": ["18px", { lineHeight: "24px" }],
         "3xl": ["22px", { lineHeight: "28px" }],
+        "4xl": ["28px", { lineHeight: "34px" }],
+        "5xl": ["36px", { lineHeight: "42px" }],
       },
     },
   },
