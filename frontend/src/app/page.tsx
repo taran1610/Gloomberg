@@ -32,17 +32,30 @@ const DUMMY_DASHBOARD: DashboardData = {
   crypto: [
     { ticker: "BTC-USD", name: "Bitcoin", price: 98000, change_pct: 0.5 },
     { ticker: "ETH-USD", name: "Ethereum", price: 3650, change_pct: -0.2 },
+    { ticker: "SOL-USD", name: "Solana", price: 245, change_pct: 1.2 },
+    { ticker: "BNB-USD", name: "BNB", price: 685, change_pct: -0.3 },
+    { ticker: "XRP-USD", name: "XRP", price: 2.45, change_pct: 0.8 },
+    { ticker: "ADA-USD", name: "Cardano", price: 1.12, change_pct: -0.5 },
   ],
   commodities: [
     { ticker: "GC=F", name: "Gold", price: 2650, change_pct: 0.15 },
-    { ticker: "CL=F", name: "Crude Oil", price: 78.5, change_pct: -0.3 },
+    { ticker: "SI=F", name: "Silver", price: 31.5, change_pct: -0.5 },
+    { ticker: "CL=F", name: "Crude Oil WTI", price: 78.5, change_pct: -0.3 },
+    { ticker: "BZ=F", name: "Brent Crude", price: 82.2, change_pct: -0.2 },
+    { ticker: "NG=F", name: "Natural Gas", price: 3.12, change_pct: -2.1 },
+    { ticker: "HG=F", name: "Copper", price: 4.25, change_pct: 0.8 },
+    { ticker: "PL=F", name: "Platinum", price: 1025, change_pct: -0.4 },
   ],
   forex: [
     { ticker: "EURUSD=X", name: "EUR/USD", price: 1.085, change_pct: 0.05 },
-    { ticker: "USDJPY=X", name: "USD/JPY", price: 149.5, change_pct: -0.12 },
+    { ticker: "GBPUSD=X", name: "GBP/USD", price: 1.265, change_pct: -0.12 },
+    { ticker: "USDJPY=X", name: "USD/JPY", price: 149.5, change_pct: 0.24 },
+    { ticker: "AUDUSD=X", name: "AUD/USD", price: 0.652, change_pct: -0.35 },
+    { ticker: "USDCAD=X", name: "USD/CAD", price: 1.362, change_pct: 0.08 },
+    { ticker: "USDCHF=X", name: "USD/CHF", price: 0.885, change_pct: -0.15 },
+    { ticker: "DX-Y.NYB", name: "US Dollar Index", price: 104.25, change_pct: 0.22 },
   ],
   vix: 15.5,
-  ai_summary: null,
 };
 
 export default function DashboardPage() {
@@ -93,9 +106,13 @@ export default function DashboardPage() {
   const gainers = Array.isArray(displayData?.gainers) ? displayData.gainers : [];
   const losers = Array.isArray(displayData?.losers) ? displayData.losers : [];
   const sectors = Array.isArray(displayData?.sectors) ? displayData.sectors : [];
-  const crypto = Array.isArray(displayData?.crypto) ? displayData.crypto : [];
-  const commodities = Array.isArray(displayData?.commodities) ? displayData.commodities : [];
-  const forex = Array.isArray(displayData?.forex) ? displayData.forex : [];
+  // Never show zeros: use dummy when crypto/forex/commodities have all zero prices
+  const rawCrypto = Array.isArray(displayData?.crypto) ? displayData.crypto : [];
+  const rawCommodities = Array.isArray(displayData?.commodities) ? displayData.commodities : [];
+  const rawForex = Array.isArray(displayData?.forex) ? displayData.forex : [];
+  const crypto = !rawCrypto.length || rawCrypto.every((c) => (c.price ?? 0) === 0) ? DUMMY_DASHBOARD.crypto : rawCrypto;
+  const commodities = !rawCommodities.length || rawCommodities.every((c) => (c.price ?? 0) === 0) ? DUMMY_DASHBOARD.commodities : rawCommodities;
+  const forex = !rawForex.length || rawForex.every((f) => (f.price ?? 0) === 0) ? DUMMY_DASHBOARD.forex : rawForex;
 
   return (
     <div className="h-full flex flex-col">
