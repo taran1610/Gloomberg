@@ -4,6 +4,7 @@ import TerminalHeader from "@/components/TerminalHeader";
 import TickerTape from "@/components/TickerTape";
 import WaitlistPopup from "@/components/WaitlistPopup";
 import { AuthProvider } from "@/lib/auth";
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: "GLOOMBERG TERMINAL",
@@ -26,6 +27,7 @@ export default function RootLayout({
           </div>
           <WaitlistPopup />
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
